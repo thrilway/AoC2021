@@ -23,6 +23,7 @@
 (define (sort-string s)
   (list->string (sort (string->list s) char<?)))
 
+
 (define (decode-sig-patterns patterns)
   (define (uniques patterns)
     (let loop ((rem patterns) (unknown '()) (known (make-immutable-hash)))

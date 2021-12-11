@@ -89,6 +89,13 @@
       (values (car next)
               (+ sum (cdr next))))))
 
+(define (stop grid)
+  (let loop ((i 0) (g grid) (flashes 0))
+    (if (equal? 100 flashes)
+        i
+        (let ((next (step g)))
+          (loop (add1 i) (car next) (cdr next))))))
+
 (define test-data #<<HERE
 5483143223
 2745854711
@@ -105,4 +112,4 @@ HERE
 
 
 
-(go (call-with-input-string data init))
+(stop (call-with-input-string data init))
