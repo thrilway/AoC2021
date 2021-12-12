@@ -1,6 +1,6 @@
 #lang racket
 
-(struct cave (type outs) #:transparent)
+(struct cave (name type outs) #:transparent)
 
 (define (cave-add-out c out)
   (struct-copy cave c (outs (cons out (cave-outs c)))))
@@ -21,22 +21,22 @@
           ((char-upper-case? (string-ref (caar cur) 0))
            (loop (cdr cur) (hash-set acc
                                      (string->symbol (caar cur))
-                                     (cave 'large (list (string->symbol (cadar cur)))))))
+                                     (cave (string->symbol (caar cur)) 'large (list (string->symbol (cadar cur)))))))
           ((string=? (caar cur) "start")
            (loop (cdr cur)
                  (hash-set acc
                            (string->symbol (caar cur))
-                           (cave 'start (list (string->symbol (cadar cur)))))))
+                           (cave (string->symbol (caar cur)) 'start (list (string->symbol (cadar cur)))))))
           ((string=? (caar cur) "end")
            (loop (cdr cur)
                  (hash-set acc
                            (string->symbol (caar cur))
-                           (cave 'end (list (string->symbol (cadar cur)))))))
+                           (cave (string->symbol (caar cur)) 'end (list (string->symbol (cadar cur)))))))
           (else
            (loop (cdr cur)
                  (hash-set acc
                            (string->symbol (caar cur))
-                           (cave 'small (list (string->symbol (cadar cur))))))))))
+                           (cave (string->symbol (caar cur)) 'small (list (string->symbol (cadar cur))))))))))
 (define (paths caves)
   (define (doubled-path? path)
     (not (equal?
@@ -67,6 +67,32 @@
                 (i-loop (cdr rem) i-acc i-done))
                (else
                 (i-loop (cdr rem) (cons (cons (car rem) (car cur)) i-acc) i-done))))))))
+(define (dfs caves)
+  (define (doubled-path? path)
+    (not (equal?
+          (filter cave-small? path)
+          (filter cave-small? (remove-duplicates path)))))
+  (define (next-caves c h)
+    (let loop ((outs (cave-outs c)) (acc '()))
+      (cond ((null? outs) acc)
+            ((or (not (hash-has-key? h (car outs)))
+                 (equal? (car outs) 'start))
+             (loop (cdr outs) acc))
+            (else (loop (cdr outs) (cons (hash-ref h (car outs)) acc))))))
+  (let loop ((cur (list (hash-ref caves 'start))) (stack '()) (count 0))
+    (cond ((and (equal? (cave-type (car cur)) 'end)
+                (null? stack))
+           (add1 count))
+          ((equal? (cave-type (car cur)) 'end) (loop (car stack) (cdr stack) (add1 count)))
+          ((and (null? stack) (cave-small? (car cur)) (doubled-path? (cdr cur))) count)
+          ((and (cave-small? (car cur))
+                (doubled-path? (cdr cur))
+                (member (car cur) (cdr cur))) (loop (car stack) (cdr stack) count))
+          (else (let ((next
+                       (map (lambda (x) (cons x cur))
+                            (next-caves (car cur) caves))))
+                  (loop (car next) (append (cdr next) stack) count)))))) 
+                  
 
 (define test-data #<<HERE
 dc-end
@@ -104,4 +130,4 @@ start-RW
 HERE
 )
 
-(paths (call-with-input-file "day12.txt" init))
+(dfs (call-with-input-file "day12.txt" init))
