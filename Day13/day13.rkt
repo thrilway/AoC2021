@@ -1,104 +1,63 @@
 #lang racket
 
+(struct dot (x y) #:prefab)
+
+(define (fold dots instr)
+  (define (translate c l)
+    (- c (* 2 (- c l))))
+  (let ((axis (car instr)) (at (cdr instr)))
+    (let loop ((rem dots) (acc '()))
+      (cond ((null? rem) (remove-duplicates acc))
+            ((and (equal? "y" axis)
+                  (< (dot-y (car rem)) at))
+             (loop (cdr rem) (cons (car rem) acc)))
+            ((and (equal? "y" axis)
+                  (> (dot-y (car rem)) at))
+             (loop (cdr rem) (cons
+                              (struct-copy dot (car rem) (y (translate (dot-y (car rem)) at)))
+                              acc)))
+            ((and (equal? "x" axis)
+                  (< (dot-x (car rem)) at))
+             (loop (cdr rem) (cons (car rem) acc)))
+            ((and (equal? "x" axis)
+                  (> (dot-x (car rem)) at))
+             (loop (cdr rem) (cons
+                              (struct-copy dot (car rem) (x (translate (dot-x (car rem)) at)))
+                              acc)))
+            (else (loop (cdr rem) acc))))))
+
 (define (dimensions ds)
   (let loop ((rem ds) (width 0) (height 0))
     (if
      (null? rem)
      (cons width height)
-     (loop (cdr rem) (max width (caar rem)) (max height (cdar rem))))))
+     (loop (cdr rem) (max width (dot-x (car rem))) (max height (dot-y (car rem)))))))
 
-(define (blank-sheet dim)
-  (make-vector (add1 (cdr dim))
-               (make-vector (add1 (car dim)) #f)))
-
-(define (mark-sheet! sheet coord)
-  (let ((new-row (vector-copy (vector-ref sheet (cdr coord)))))
-    (vector-set! new-row (car coord) #t)
-    (vector-set! sheet (cdr coord) new-row)))
-
-(define (draw sheet)
-  (let yloop ((y 0) (acc ""))
-    (if (equal? y (vector-length sheet))
-        (display acc)
-        (let xloop ((x 0) (row (vector-ref sheet y)) (i-acc acc))
-          (cond ((equal? x (vector-length row)) (yloop (add1 y) (string-append i-acc "\n")))
-                ((vector-ref row x) (xloop (add1 x) row (string-append i-acc "#")))
-                (else (xloop (add1 x) row (string-append i-acc "."))))))))
-
-(define (fold sheet instr)
-  (define (layer sheet1 sheet2)
-    (let yloop ((y 0))
-      (if (equal? y (vector-length sheet1))
-          sheet1
-          (let ((row1 (vector-copy (vector-ref sheet1 y)))
-                (row2 ((vector-ref sheet2 y))))
-            (let x-loop ((x 0))
-              (if (equal? x (vector-length row1))
-                  (begin
-                    (vector-set! sheet1 y row1)
-                    (yloop (add1 y)))
-                  (begin
-                    (vector-set! row1 x (or (vector-ref row1 x)
-                                            (vector-ref row2 x)))
-                    (x-loop (add1 x)))))))))
-                    
-  (define (x-fold sheet col)
-    (let loop ((y 0) (l '()) (r '()))
-      (if (equal? y (vector-length sheet))
-          (layer (list->vector l) (list->vector r))
-          (call-with-values
-           (lambda () (vector-split-at (vector-ref sheet y) col))
-           (lambda (left right)
-             (let* ((len (vector-length left))
-                    (pad (make-list (- len (vector-length right)) #f))
-                    (right-l (reverse (append (vector->list right) pad))))
-               (loop
-                (add1 y)
-                (append l (list left))
-                (append r (list
-                           (list->vector right-l))))))))))
-  (define (y-fold sheet row)
-    (let ((blank-row (make-vector (vector-length (vector-ref sheet 0)) #f)))
-      (let loop ((top (vector->list (vector-take sheet row))) (bottom (vector->list (vector-drop sheet (add1 row)))))
-        (cond ((equal? (length top) (length bottom))
-               (layer (list->vector top) (list->vector (reverse bottom))))
-              ((> (length top) (length bottom))
-               ;START HERE
-               
-                                                              
-       (let* ((blank-row (make-vector (vector-length (vector-ref bot 0)) #f))
-              (pad (make-list (- row (vector-length bot)) blank-row))
-              (bot-l (append (vector->list bot) pad)))
-         (layer top
-                (list->vector (reverse bot-l)))))))
-  (if (equal? (car instr) "y")
-      (y-fold sheet (cdr instr))
-      (x-fold sheet (cdr instr))))
-                      
+(define (draw dots)
+  (let ((dim (dimensions dots)))
+    (let y-loop ((y 0) (acc ""))
+      (if (> y (cdr dim))
+          (display acc)
+          (let x-loop ((x 0) (i-acc acc))
+            (cond ((> x (car dim)) (y-loop (add1 y) (string-append i-acc "\n")))
+                  ((member (dot x y) dots) (x-loop (add1 x) (string-append i-acc "#")))
+                  (else (x-loop (add1 x) (string-append i-acc ".")))))))))
 
 (define (init ip)
-  (define (fill-sheet d)
-    (let ((sheet (blank-sheet (dimensions d))))
-      (let loop ((rem d))
-        (if (null? rem)
-            sheet
-            (begin
-              (mark-sheet! sheet (car rem))
-              (loop (cdr rem)))))))
   (define (dots ip)
     (let loop ((cur (read-line ip)) (acc '()))
       (if
        (equal? "" cur)
        acc
        (let ((coord (map string->number (string-split cur ","))))
-         (loop (read-line ip) (cons (cons (car coord) (cadr coord)) acc))))))
+         (loop (read-line ip) (cons (dot (car coord) (cadr coord)) acc))))))
   (define (folds ip)
     (let loop ((cur (read-line ip)) (acc '()))
       (if (eof-object? cur)
           (reverse acc)
           (let ((instr (string-split (substring cur 11) "=")))
             (loop (read-line ip) (cons (cons (car instr) (string->number (cadr instr))) acc))))))
-  (values (fill-sheet (dots ip)) (folds ip)))
+  (values (dots ip) (folds ip)))
 
 (define test-data #<<HERE
 6,10
@@ -125,4 +84,9 @@ fold along x=5
 HERE
   )
 
-(call-with-values (lambda () (call-with-input-string test-data init)) (lambda (x y) (fold x (car y))))
+(call-with-values (lambda () (call-with-input-file "day13.txt" init))
+                  (lambda (x y)
+                    (let loop ((rem y) (dots x))
+                      (if (null? rem)
+                          (draw dots)
+                          (loop (cdr rem) (fold dots (car rem)))))))
