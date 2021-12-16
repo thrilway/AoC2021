@@ -40,7 +40,7 @@
           (display acc)
           (let x-loop ((x 0) (i-acc acc))
             (cond ((> x (car dim)) (y-loop (add1 y) (string-append i-acc "\n")))
-                  ((member (dot x y) dots) (x-loop (add1 x) (string-append i-acc "#")))
+                  ((member (dot x y) dots) (x-loop (add1 x) (string-append i-acc "▮")))
                   (else (x-loop (add1 x) (string-append i-acc ".")))))))))
 
 (define (init ip)
