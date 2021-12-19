@@ -16,44 +16,6 @@
         ((number? pair) (number->string pair))
         ((pair? pair) (format "[~a, ~a]" (pair->string (car pair)) (pair->string (cdr pair))))))
 
-(define (recursive-ref pair idx)
-  (define (go p (i 0))
-    (cond ((null? p) (list i))
-          ((and (not (equal? i idx))
-                (not (pair? p))) (list (add1 i)))
-          ((and (equal? i idx) (not (pair? p))) p)          
-          (else (let ((res (go (car p) i)))
-                  (if (pair? res)
-                      (go (cdr p) (car res))
-                      res)))))
-  (go pair))
-(define (recursive-length pair)
-  (define (go p i)
-    (cond ((null? p) i)
-          ((not (pair? p)) (add1 i))
-          (else (let ((j (go (car p) i)))
-                  (go (cdr p) j)))))
-  (go pair 0))
-
-(define (recursive-update pair idx proc)
-  (define (go p i)
-    (cond
-        ((null? p) (values p i))
-        ((and (not (equal? i idx))
-              (not (pair? p)))
-         (values p (add1 i)))
-        ((and (equal? i idx) (not (pair? p))) (values (proc p) '()))
-        (else (let-values (((res j) (go (car p) i)))
-                (if (null? j)
-                    (values
-                     (cons res (cdr p))
-                     j)
-                    (let-values (((cdr-res k) (go (cdr p) j)))
-                      (values
-                       (cons res cdr-res)
-                       k)))))))
-  (call-with-values (lambda () (go pair 0)) (lambda (x y) x)))
-
 (define (explode pair)
   (define (find-exploding p i d)
     (cond
@@ -120,22 +82,19 @@
                 p))))))
 
 (define (fn-sum lst)
-  (display "  ")
-  (let loop ((cur (reduce (car lst))) (rem (cdr lst)))
-    (display (pair->string cur))
-    (newline)           
+  (let loop ((cur (reduce (car lst))) (rem (cdr lst))) 
     (if (null? rem)
         cur
-        (begin
-          (newline)
-          (display "  ")
-          (display (pair->string cur))
-          (newline)
-          (display "+ ")
-          (display (pair->string (car rem)))
-          (newline)
-          (display "= ")
-          (loop (reduce (cons cur (car rem))) (cdr rem))))))
+        (loop (reduce (cons cur (car rem))) (cdr rem)))))
+(define (biggest-sum lst)
+  (for/fold ((m 0)
+            #:result m)
+            ((a1 (in-list lst)))
+    (for/fold ((n 0)
+               #:result (max n m))
+              ((a2 (in-list lst))
+               #:unless (equal? a1 a2))
+      (max n (mag (reduce (cons a1 a2)))))))
 
 (define (mag pair)
   (if (number? pair)
@@ -143,21 +102,16 @@
       (+ (* 3 (mag (car pair))) (* 2 (mag (cdr pair))))))
 
 (define test-data #<<HERE
-[[[0,[4,5]],[0,0]],[[[4,5],[2,6]],[9,5]]]
-[7,[[[3,7],[4,3]],[[6,3],[8,8]]]]
-[[2,[[0,8],[3,4]]],[[[6,7],1],[7,[1,6]]]]
-[[[[2,4],7],[6,[0,5]]],[[[6,8],[2,8]],[[2,1],[4,5]]]]
-[7,[5,[[3,8],[1,4]]]]
-[[2,[2,2]],[8,[8,1]]]
-[2,9]
-[1,[[[9,3],9],[[9,0],[0,7]]]]
-[[[5,[7,4]],7],1]
-[[[[4,2],2],6],[8,7]]
+[[[0,[5,8]],[[1,7],[9,6]]],[[4,[1,2]],[[1,4],2]]]
+[[[5,[2,8]],4],[5,[[9,9],0]]]
+[6,[[[6,2],[5,6]],[[7,6],[4,7]]]]
+[[[6,[0,7]],[0,9]],[4,[9,[9,0]]]]
+[[[7,[6,4]],[3,[1,3]]],[[[5,5],1],9]]
+[[6,[[7,3],[3,2]]],[[[3,8],[5,7]],4]]
+[[[[5,4],[7,7]],8],[[8,3],8]]
+[[9,3],[[9,9],[6,[4,9]]]]
+[[2,[[7,7],7]],[[5,8],[[9,3],[0,2]]]]
+[[[[5,2],5],[8,[3,7]]],[[5,[7,5]],[4,4]]]
 HERE
-  )
-
-(define small-data "[[[[4,3],4],4],[7,[[8,4],9]]]\n[1,1]")
-;(pair->string '(((0 4 . 5) 0 . 0) ((4 . 5) 2 . 6) 9 . 5))
-(fn-sum (call-with-input-string test-data init))
-
-;(fn-sum (call-with-input-string small-data init))
+)
+(biggest-sum (call-with-input-file "day18.txt" init))
