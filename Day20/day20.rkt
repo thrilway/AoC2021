@@ -2,6 +2,7 @@
 
 (require racket/draw)
 (require racket/gui)
+
 (define (init ip)
   (define (read-key ip)
     (let loop ((cur (read-line ip)) (acc ""))
@@ -90,20 +91,14 @@
           (send bmp set-argb-pixels (* scale x) (* scale y) scale scale (pix->square black scale)))))
   bmp)
 
-(define (get-padder k n)
-  (let loop ((rem n) (p #\.))
-    (cond ((zero? rem) p)
-          ((char=? p #\.) (loop (sub1 rem)
-                                (string-ref k (string->number (make-string 9 #\0) 2))))
-          ((char=? p #\#) (loop (sub1 rem)
-                                (string-ref k (string->number (make-string 9 #\1) 2)))))))
-
 (define (show-img img)
   (define bmp (img->bmp img 1))
   (define f (new frame% [label "Bitmap"]))
   (new message% [parent f] [label bmp])
   (send f show #t)
   )
+
+
 (define (go i k n)
   (define (prepare-img)
     (let loop ((rem n) (acc i))
@@ -111,8 +106,6 @@
           (pad-img acc 2 #\.)
           (loop (sub1 rem) (pad-img acc 2 #\.)))))
   (let loop ((rem 0) (acc (prepare-img)))
-    ;(display (img->string acc))
-    ;(newline)
     (if (>= rem n)
         (begin
           (show-img acc)
